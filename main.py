@@ -1,66 +1,83 @@
-from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters, CallbackContext
+import logging
+from aiogram import Bot, Dispatcher, executor, types
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+from aiogram.dispatcher import FSMContext
+from aiogram.contrib.fsm_storage.memory import MemoryStorage
+from aiogram.dispatcher.filters.state import State, StatesGroup
 import os
 
-# Змінні середовища
-TOKEN = os.getenv("BOT_TOKEN")
-CHAT_ID = int(os.getenv("CHAT_ID"))  # Наприклад: -1002582699976
+API_TOKEN = os.getenv("BOT_TOKEN")
+GROUP_CHAT_ID = os.getenv("CHAT_ID")  # має виглядати як -1001234567890
 
-# Повідомлення для кнопок
-messages = {
-    "accept": "🚚 Прийняв доставку",
-    "delay": "⏳ Затримуюсь",
-    "arrived": "🏦 Прибув",
-    "done": "✅ Завершив доставку"
-}
+logging.basicConfig(level=logging.INFO)
 
-# Стан користувача
-user_state = {}
+bot = Bot(token=API_TOKEN)
+dp = Dispatcher(bot, storage=MemoryStorage())
 
-# Команда /start
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [[
-        KeyboardButton("Прийняв доставку"),
-        KeyboardButton("Затримуюсь")
-    ], [
-        KeyboardButton("Прибув"),
-        KeyboardButton("Завершив доставку")
-    ]]
+class Form(StatesGroup):
+    waiting_for_address = State()
 
-    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-    await update.message.reply_text("Оберіть дію:", reply_markup=reply_markup)
+# Кнопки для кур'єра
+main_keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
+main_keyboard.add(
+    KeyboardButton("🚗 Прийняв доставку"),
+    KeyboardButton("⏱️ Затримуюсь")
+).add(
+    KeyboardButton("📍 Прибув"),
+    KeyboardButton("✅ Завершив доставку")
+)
 
-# Обробка кнопок і тексту
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
-    user_id = update.message.from_user.id
-    username = update.message.from_user.username or update.message.from_user.first_name
+@dp.message_handler(commands=["start"])
+async def start_command(message: types.Message):
+    await message.answer("Оберіть дію:", reply_markup=main_keyboard)
 
-    # Якщо чекаємо адресу після "Прийняв доставку"
-    if user_state.get(user_id) == "awaiting_address":
-        msg = f"✉️ Кур'єр {username} прийняв доставку
-Адреса: {text}"
-        await context.bot.send_message(chat_id=CHAT_ID, text=msg)
-        user_state[user_id] = None
-        await update.message.reply_text("Дякуємо! Адресу передано.")
-        return
+@dp.message_handler(lambda message: message.text == "🚗 Прийняв доставку")
+async def process_start_delivery(message: types.Message):
+    await message.answer("Введіть адресу доставки:")
+    await Form.waiting_for_address.set()
 
-    # Якщо обрано дію
-    for action, label in messages.items():
-        if label.endswith(text):
-            if action == "accept":
-                user_state[user_id] = "awaiting_address"
-                await update.message.reply_text("Введіть адресу доставки:")
-            else:
-                msg = f"✉️ Кур'єр {username} {label}"
-                await context.bot.send_message(chat_id=CHAT_ID, text=msg)
-                await update.message.reply_text("Ок, оновлено!")
-            return
+@dp.message_handler(state=Form.waiting_for_address)
+async def process_address(message: types.Message, state: FSMContext):
+    user = message.from_user
+    username = user.username or user.first_name or "Кур'єр"
+    address = message.text
 
-# Запуск бота
+    msg = f"🚗 Кур'єр @{username} прийняв доставку.\n📍 Адреса: {address}"
+    try:
+        await bot.send_message(chat_id=GROUP_CHAT_ID, text=msg)
+    except Exception as e:
+        await message.answer("Помилка надсилання до групи. Повідомте адміністратора.")
+        logging.error(f"Error sending message to group: {e}")
+
+    # Видаляємо адресу з чату кур'єра
+    try:
+        await bot.delete_message(chat_id=message.chat.id, message_id=message.message_id)
+    except:
+        pass
+
+    await state.finish()
+    await message.answer("✅ Адресу прийнято. Оберіть наступну дію:", reply_markup=main_keyboard)
+
+@dp.message_handler(lambda message: message.text == "⏱️ Затримуюсь")
+async def delay_handler(message: types.Message):
+    username = message.from_user.username or message.from_user.first_name or "Кур'єр"
+    msg = f"⏱️ @{username} повідомив(ла), що затримується."
+    await bot.send_message(chat_id=GROUP_CHAT_ID, text=msg)
+    await message.answer("Затримка зафіксована.", reply_markup=main_keyboard)
+
+@dp.message_handler(lambda message: message.text == "📍 Прибув")
+async def arrived_handler(message: types.Message):
+    username = message.from_user.username or message.from_user.first_name or "Кур'єр"
+    msg = f"📍 @{username} прибув на адресу."
+    await bot.send_message(chat_id=GROUP_CHAT_ID, text=msg)
+    await message.answer("Прибуття зафіксовано.", reply_markup=main_keyboard)
+
+@dp.message_handler(lambda message: message.text == "✅ Завершив доставку")
+async def complete_handler(message: types.Message):
+    username = message.from_user.username or message.from_user.first_name or "Кур'єр"
+    msg = f"✅ @{username} завершив доставку."
+    await bot.send_message(chat_id=GROUP_CHAT_ID, text=msg)
+    await message.answer("Доставку завершено.", reply_markup=main_keyboard)
+
 if __name__ == '__main__':
-    app = ApplicationBuilder().token(TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    print("Bot is running...")
-    app.run_polling()
+    executor.start_polling(dp, skip_updates=True)
