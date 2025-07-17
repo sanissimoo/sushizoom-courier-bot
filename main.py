@@ -6,7 +6,7 @@ from telegram.ext import (
 )
 import os
 
-# Отримуємо токен і chat_id з середовища
+# Змінні середовища
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 GROUP_CHAT_ID = int(os.getenv("CHAT_ID"))
 
@@ -17,7 +17,7 @@ CHOOSING, TYPING_ADDRESS = range(2)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Клавіатура
+# Кнопки
 keyboard = InlineKeyboardMarkup([
     [InlineKeyboardButton("🚗 Прийняв доставку", callback_data="accept")],
     [InlineKeyboardButton("⏱ Затримуюсь", callback_data="delay"),
@@ -48,18 +48,19 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     }
 
     if action in messages:
-        text = f"{messages[action]}\nКурʼєр: @{user.username or user.first_name}"
-text = f"Кур'єр: @{user.username or user.first_name}"
+        text = f"{messages[action]}\nКур'єр: @{user.username or user.first_name}"
         await context.bot.send_message(chat_id=GROUP_CHAT_ID, text=text)
         return CHOOSING
 
-# Приймаємо адресу
+# Прийом адреси
 async def received_address(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     address = update.message.text
-    text = f"🚗 Кур'єр прийняв доставку
-📍 Адреса: {address}
-Курʼєр @{user.username or user.first_name}"
+    text = (
+        f"🚗 Кур'єр прийняв доставку\n"
+        f"📍 Адреса: {address}\n"
+        f"Кур'єр: @{user.username or user.first_name}"
+    )
     await context.bot.send_message(chat_id=GROUP_CHAT_ID, text=text)
     await update.message.reply_text("Дякую! Оберіть наступну дію:", reply_markup=keyboard)
     return CHOOSING
@@ -69,7 +70,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Скасовано.")
     return ConversationHandler.END
 
-# Запуск бота
+# Запуск
 if __name__ == "__main__":
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
