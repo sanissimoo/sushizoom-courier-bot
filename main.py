@@ -22,37 +22,42 @@ keyboard = ReplyKeyboardMarkup(
     resize_keyboard=True
 )
 
+# /start тільки в особистому чаті
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.delete()
-    await update.effective_chat.send_message("Оберіть дію:", reply_markup=keyboard)
+    if update.effective_chat.type != "private":
+        return
+    await update.message.reply_text("Оберіть дію:", reply_markup=keyboard)
     return CHOOSING
 
+# Обробка кнопок
 async def handle_choice(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_chat.type != "private":
+        return
     user = update.effective_user
     text = update.message.text
-    await update.message.delete()
 
     if text == "🚗 Прийняв доставку":
-        await update.effective_chat.send_message("Введіть адресу доставки:", reply_markup=ReplyKeyboardRemove())
+        await update.message.reply_text("Введіть адресу доставки:", reply_markup=ReplyKeyboardRemove())
         return TYPING_ADDRESS
 
-    if text == "⏱ Затримуюсь":
-        message_text = "⏱ Кур'єр затримується"
-    elif text == "📍 Прибув":
-        message_text = "📍 Кур'єр прибув на адресу"
-    elif text == "✅ Завершив доставку":
-        message_text = "✅ Доставка завершена"
-    else:
-        return CHOOSING
+    messages = {
+        "⏱ Затримуюсь": "⏱ Кур'єр затримується",
+        "📍 Прибув": "📍 Кур'єр прибув на адресу",
+        "✅ Завершив доставку": "✅ Доставка завершена"
+    }
 
-    full_message = f"{message_text}\nКур'єр: @{user.username or user.first_name}"
-    await context.bot.send_message(chat_id=GROUP_CHAT_ID, text=full_message)
+    if text in messages:
+        full_message = f"{messages[text]}\nКур'єр: @{user.username or user.first_name}"
+        await context.bot.send_message(chat_id=GROUP_CHAT_ID, text=full_message)
+
     return CHOOSING
 
+# Введення адреси
 async def handle_address(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_chat.type != "private":
+        return
     user = update.effective_user
     address = update.message.text
-    await update.message.delete()
 
     full_message = (
         f"🚗 Кур'єр прийняв доставку\n"
@@ -60,12 +65,14 @@ async def handle_address(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"Кур'єр: @{user.username or user.first_name}"
     )
     await context.bot.send_message(chat_id=GROUP_CHAT_ID, text=full_message)
-    await update.effective_chat.send_message("Оберіть дію:", reply_markup=keyboard)
+    await update.message.reply_text("Дякую! Оберіть наступну дію:", reply_markup=keyboard)
     return CHOOSING
 
+# /cancel
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.delete()
-    await update.effective_chat.send_message("Скасовано.", reply_markup=keyboard)
+    if update.effective_chat.type != "private":
+        return
+    await update.message.reply_text("Скасовано.", reply_markup=keyboard)
     return ConversationHandler.END
 
 if __name__ == "__main__":
