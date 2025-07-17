@@ -48,7 +48,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     }
 
     if action in messages:
-        text = f"{messages[action]}
+        text = f"{messages[action]}\n🧑‍💼 @{user.username or user.first_name}"
 🧑‍💼 @{user.username or user.first_name}"
         await context.bot.send_message(chat_id=GROUP_CHAT_ID, text=text)
         return CHOOSING
