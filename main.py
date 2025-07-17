@@ -49,7 +49,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if action in messages:
         text = f"{messages[action]}\nКурʼєр: @{user.username or user.first_name}"
-🧑‍💼 @{user.username or user.first_name}"
+Курʼєр @{user.username or user.first_name}"
         await context.bot.send_message(chat_id=GROUP_CHAT_ID, text=text)
         return CHOOSING
 
@@ -59,7 +59,7 @@ async def received_address(update: Update, context: ContextTypes.DEFAULT_TYPE):
     address = update.message.text
     text = f"🚗 Кур'єр прийняв доставку
 📍 Адреса: {address}
-🧑‍💼 @{user.username or user.first_name}"
+Курʼєр @{user.username or user.first_name}"
     await context.bot.send_message(chat_id=GROUP_CHAT_ID, text=text)
     await update.message.reply_text("Дякую! Оберіть наступну дію:", reply_markup=keyboard)
     return CHOOSING
