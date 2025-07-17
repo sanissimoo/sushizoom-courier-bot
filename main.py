@@ -49,7 +49,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if action in messages:
         text = f"{messages[action]}\nКурʼєр: @{user.username or user.first_name}"
-Курʼєр @{user.username or user.first_name}"
+text = f"Кур'єр: @{user.username or user.first_name}"
         await context.bot.send_message(chat_id=GROUP_CHAT_ID, text=text)
         return CHOOSING
 
