@@ -80,4 +80,20 @@ async def complete_handler(message: types.Message):
     await message.answer("Доставку завершено.", reply_markup=main_keyboard)
 
 if __name__ == '__main__':
+    import requests
+
+    # Тестове повідомлення після запуску
+    try:
+        BOT_TOKEN = os.getenv("BOT_TOKEN")
+        CHAT_ID = os.getenv("CHAT_ID")
+        TEXT = "✅ Тестове повідомлення: бот запущено і намагається писати в групу."
+
+        url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+        payload = {"chat_id": CHAT_ID, "text": TEXT}
+        response = requests.post(url, data=payload)
+        print("Відповідь Telegram:", response.json())
+    except Exception as e:
+        print("Помилка при надсиланні тестового повідомлення:", e)
+
     executor.start_polling(dp, skip_updates=True)
+
